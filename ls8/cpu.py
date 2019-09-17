@@ -15,6 +15,19 @@ class CPU:
         # Program counter starts at 0, points to currently-executing instruction
         self.pc = 0
 
+    # In `CPU`, add method `ram_read()` and `ram_write()` that access the RAM inside
+    # the `CPU` object.
+
+    # `ram_read()` should accept the address to read and return the value stored
+    # there.
+    def ram_read(self, memory_address_register):  # accept address to read
+        value = self.ram[memory_address_register]  # get value stored at address
+        return value 
+    
+    # `raw_write()` should accept a value to write, and the address to write it to.
+    def ram_write(self, memory_data_register, memory_address_register):  # accept value and address
+        self.ram[memory_address_register] = memory_data_register
+
     def load(self):
         """Load a program into memory."""
 

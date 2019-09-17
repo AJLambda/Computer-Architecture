@@ -101,6 +101,14 @@ class CPU:
         HLT - 0b00000001
         if op == HLT:
             running = False
+        # LDI - register immediate
+        # This instruction sets a specified register to a specified value.   
+        elif op == LDI:
+            self.reg[operand_a] = operand_b
+            # increment pc by 3, LDI stores three memory addresses
+            self.pc += 3
+        
+
         
 
 

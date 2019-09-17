@@ -22,8 +22,8 @@ class CPU:
     # there.
     def ram_read(self, memory_address_register):  # accept address to read
         value = self.ram[memory_address_register]  # get value stored at address
-        return value 
-    
+        return value
+
     # `raw_write()` should accept a value to write, and the address to write it to.
     def ram_write(self, memory_data_register, memory_address_register):  # accept value and address
         self.ram[memory_address_register] = memory_data_register
@@ -81,4 +81,28 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
+        running = True
+        while running: 
+        # Read the memory address that's stored in register `PC`, 
+        # Store that result in `IR`, the _Instruction Register_. This can just be a local variable in `run()`.
+        ir = self.pc
+        op = self.ram[ir]
+        # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
+        # `operand_b` in case the instruction needs them.
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+
+        # depending on the value of the opcode, perform the actions needed for the instruction per the LS-8 spec. 
+        # if-else cascade
+
+        ## instructions
+        # HLT - Halt the CPU (and exit the emulator).
+        # Machine code: 00000001 
+        HLT - 0b00000001
+        if op == HLT:
+            running = False
+        
+
+
+
         pass

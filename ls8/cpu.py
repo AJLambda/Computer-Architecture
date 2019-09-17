@@ -10,7 +10,7 @@ class CPU:
         # Add list properties to the `CPU` class to hold 256 bytes of memory
         self.ram = [0] * 256
         # Add 8 general-purpose registers.
-        self.register = [0] * 8
+        self.reg = [0] * 8
         # Also add properties for any internal registers you need, e.g. `PC`.
         # Program counter starts at 0, points to currently-executing instruction
         self.pc = 0
@@ -83,34 +83,41 @@ class CPU:
         """Run the CPU."""
         running = True
         while running: 
-        # Read the memory address that's stored in register `PC`, 
-        # Store that result in `IR`, the _Instruction Register_. This can just be a local variable in `run()`.
-        ir = self.pc
-        op = self.ram[ir]
-        # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
-        # `operand_b` in case the instruction needs them.
-        operand_a = self.ram_read(self.pc + 1)
-        operand_b = self.ram_read(self.pc + 2)
+            # Read the memory address that's stored in register `PC`, 
+            # Store that result in `IR`, the _Instruction Register_. This can just be a local variable in `run()`.
+            ir = self.pc
+            op = self.ram[ir]
+            # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
+            # `operand_b` in case the instruction needs them.
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
 
-        # depending on the value of the opcode, perform the actions needed for the instruction per the LS-8 spec. 
-        # if-else cascade
+            # depending on the value of the opcode, perform the actions needed for the instruction per the LS-8 spec. 
+            # if-else cascade
 
-        ## instructions
-        # HLT - Halt the CPU (and exit the emulator).
-        # Machine code: 00000001 
-        HLT - 0b00000001
-        if op == HLT:
-            running = False
-        # LDI - register immediate
-        # This instruction sets a specified register to a specified value.   
-        elif op == LDI:
-            self.reg[operand_a] = operand_b
-            # increment pc by 3, LDI stores three memory addresses
-            self.pc += 3
+            ## instructions
+            # HLT - Halt the CPU (and exit the emulator).
+            # Machine code: 00000001 
+            HLT = 0b00000001
+            LDI = 0b10000010
+            PRN = 0b01000111
+            if op == HLT:
+                running = False
+
+            # LDI - register immediate
+            # Machine code: 10000010
+            elif op == LDI:
+                # This instruction sets a specified register to a specified value. 
+                self.reg[operand_a] = operand_b
+                # increment pc by 3, LDI stores 3 memory addresses
+                self.pc += 3
+
+            # PRN - PRN register pseudo-instruction
+            # Machine code: 01000111
+            elif op == PRN: 
+            # Print numeric value stored in the given register.
+            # Print to the console the decimal integer value that is stored in the given register.
+                print(self.reg[operand_a])
+                # increment pc by 2, LDI stores 2 memory addresses
+                self.pc += 2
         
-
-        
-
-
-
-        pass

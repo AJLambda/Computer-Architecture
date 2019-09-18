@@ -2,6 +2,16 @@
 
 import sys
 
+PRN = 0b01000111 #PRN 
+LDI = 0b10000010 #LDI
+HLT = 0b00000001 #HLT
+MUL = 0b10100010 #MUL
+PUSH = 0b01000101 #PUSH
+POP = 0b01000110 #POP
+# Register 7 is 0xF4 hex
+R7 = 244 # converted to decimal
+
+
 class CPU:
     """Main CPU class."""
 
@@ -14,7 +24,63 @@ class CPU:
         # Also add properties for any internal registers you need, e.g. `PC`.
         # Program counter starts at 0, points to currently-executing instruction
         self.pc = 0
+        # self.hlt = False
+        # Stack stores information temporarily
+        # Stack Pointer is at R7 (Register 7)
+        # Acts as index 
+        self.sp = R7
+        # Set up a branch table
+        self.branchtable = {}
+        self.branchtable[PRN] = self.prn
+        self.branchtable[LDI] = self.ldi
+        self.branchtable[HLT] = self.hlt
+        self.branchtable[MUL] = self.mul
+        self.branchtable[PUSH] = self.push
+        self.branchtable[POP] = self.pop
 
+        self.running = True
+        
+
+    # PRN - PRN register pseudo-instruction
+    def prn(self, a, b):
+        # operand_a = self.ram[self.pc + 1] # targeted register
+        # Print numeric value stored in the given register.
+        # Print to the console the decimal integer value that is stored in the given register.
+        print(self.reg[a])
+
+    # LDI - register immediate
+    def ldi(self, a, b):
+        # operand_a = self.ram[self.pc + 1] # targeted register
+        # operand_b = self.ram[self.pc + 2] # value to load
+        # This instruction sets a specified register to a specified value. 
+        self.reg[a] = b
+    
+    # HLT - Halt the CPU (and exit the emulator).
+    def hlt(self, a, b):
+        self.running = False
+
+    # MUL registerA registerB
+    def mul(self, a, b):
+        # operand_a = self.ram[self.pc + 1] # targeted register
+        # operand_b = self.ram[self.pc + 2] # value to load
+        # Multiply the values in two registers together and store the result in registerA.
+        self.alu("MUL", a, b)
+
+    def push(self, a, b):
+        reg_address = self.ram[self.pc + 1] # targeted register
+        self.sp -= 1  # grows down as things are pushed on, decrement stack, update stack pointer
+        value = self.reg[reg_address] 
+        # Copy the value in the given register to the address pointed to by SP
+        self.ram[self.sp] = value # Save value in portion of ram _that is allocated for the stack_
+    
+    def pop(self, a, b):
+        reg_address = self.ram[self.pc + 1] # targeted register
+        value = self.ram[self.sp] # get value from ram
+        self.reg[reg_address] = value # set value from ram to register address
+        self.sp += 1 # increment stack, update stack pointer
+      
+    
+       
     # In `CPU`, add method `ram_read()` and `ram_write()` that access the RAM inside
     # the `CPU` object.
 
@@ -107,49 +173,90 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        running = True
-        while running: 
+    
+        while self.running: 
             # Read the memory address that's stored in register `PC`, 
             # Store that result in `IR`, the _Instruction Register_. This can just be a local variable in `run()`.
             ir = self.pc
             op = self.ram[ir]
-            # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
-            # `operand_b` in case the instruction needs them.
+            # dynamic instruction size
+            instruction_size = ((op & 11000000) >> 6) + 1
+
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
+            self.branchtable[op](operand_a, operand_b)
+            self.pc += instruction_size
+
+            # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
+            # `operand_b` in case the instruction needs them.
+            # operand_a = self.ram_read(self.pc + 1)
+            # operand_b = self.ram_read(self.pc + 2)
 
             # depending on the value of the opcode, perform the actions needed for the instruction per the LS-8 spec. 
             # if-else cascade
 
             ## instructions
-            HLT = 0b00000001  # Machine code: 00000001 
-            LDI = 0b10000010
-            PRN = 0b01000111
-            MUL = 0b10100010
+            # HLT = 0b00000001  # Machine code: 00000001 
+            # LDI = 0b10000010
+            # PRN = 0b01000111
+            # MUL = 0b10100010
             
             # HLT - Halt the CPU (and exit the emulator).
-            if op == HLT:
-                running = False
+            # if op == HLT:
+            #     running = False
 
             # LDI - register immediate
-            elif op == LDI:
-                # This instruction sets a specified register to a specified value. 
-                self.reg[operand_a] = operand_b
-                # increment pc by 3, LDI stores 3 memory addresses
-                self.pc += 3
+            # elif op == LDI:
+            #     # This instruction sets a specified register to a specified value. 
+            #     self.reg[operand_a] = operand_b
+            #     # increment pc by 3, LDI stores 3 memory addresses
+            #     self.pc += 3
 
             # PRN - PRN register pseudo-instruction
-            elif op == PRN: 
-            # Print numeric value stored in the given register.
-            # Print to the console the decimal integer value that is stored in the given register.
-                print(self.reg[operand_a])
-                # increment pc by 2, LDI stores 2 memory addresses
-                self.pc += 2
+            # elif op == PRN: 
+            # # Print numeric value stored in the given register.
+            # # Print to the console the decimal integer value that is stored in the given register.
+            #     print(self.reg[operand_a])
+            #     # increment pc by 2, LDI stores 2 memory addresses
+            #     self.pc += 2
 
             # MUL registerA registerB
             # Multiply the values in two registers together and store the result in registerA.
-            elif op == MUL:
-                self.alu("MUL", operand_a, operand_b)
-                # increment pc by 3, MUL stores 3 memory addresses
-                self.pc += 3
+            # elif op == MUL:
+            #     self.alu("MUL", operand_a, operand_b)
+            #     # increment pc by 3, MUL stores 3 memory addresses
+            #     self.pc += 3
+
+            # PUSH
+            # elif op == PUSH:
+                # reg_num = memory[pc + 1]
+
+                # # decremenet sp
+                # reg[SP] -= 1
+
+                # # copy value from register into RAM
+                # val = registers[reg_num]
+                # top_of_stack = registers[SP]
+                # memory[top_of_stack] = val
+
+                # pc += 2
+            
+            # POP
+            # opposite of push 
+            # elif op == POP:
+                # reg_num = memory[pc + 1]
+
+                # # copy value from the address pointed to SP by given register
+                # # copy from stack to register
+                # top_of_stack = registers[SP]
+                # val = memory[top_of_stack]
+                # registers[reg_num] = val
+
+                # # increment SP
+                # registers[SP] += 1
+                
+                # pc += 2
+
+
+
         

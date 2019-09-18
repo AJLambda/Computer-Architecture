@@ -80,6 +80,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -120,16 +122,16 @@ class CPU:
             # if-else cascade
 
             ## instructions
-            # HLT - Halt the CPU (and exit the emulator).
-            # Machine code: 00000001 
-            HLT = 0b00000001
+            HLT = 0b00000001  # Machine code: 00000001 
             LDI = 0b10000010
             PRN = 0b01000111
+            MUL = 0b10100010
+            
+            # HLT - Halt the CPU (and exit the emulator).
             if op == HLT:
                 running = False
 
             # LDI - register immediate
-            # Machine code: 10000010
             elif op == LDI:
                 # This instruction sets a specified register to a specified value. 
                 self.reg[operand_a] = operand_b
@@ -137,11 +139,17 @@ class CPU:
                 self.pc += 3
 
             # PRN - PRN register pseudo-instruction
-            # Machine code: 01000111
             elif op == PRN: 
             # Print numeric value stored in the given register.
             # Print to the console the decimal integer value that is stored in the given register.
                 print(self.reg[operand_a])
                 # increment pc by 2, LDI stores 2 memory addresses
                 self.pc += 2
+
+            # MUL registerA registerB
+            # Multiply the values in two registers together and store the result in registerA.
+            elif op == MUL:
+                self.alu("MUL", operand_a, operand_b)
+                # increment pc by 3, MUL stores 3 memory addresses
+                self.pc += 3
         

@@ -31,23 +31,47 @@ class CPU:
     def load(self):
         """Load a program into memory."""
 
-        address = 0
+        # # For now, we've just hardcoded a program:
 
-        # For now, we've just hardcoded a program:
+        # address = 0
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # for instruction in program:
+        #     self.ram[address] = instruction
+        #     address += 1
+
+        # print("arg0", sys.argv[0])
+        # print("arg1", sys.argv[1])
+        
+        # Use those command line arguments to open a file
+        try: 
+            with open(sys.argv[1]) as f:
+                address = 0
+                # read in its contents line by line
+                for line in f:
+                    # search the instruction part before "#"
+                    comment_split = line.split("#")
+                    # remove empty space
+                    num = comment_split[0].strip()
+                    
+                    try: 
+                        # convert binary to int and save appropriate data into RAM.
+                        self.ram[address] = int(num, 2)
+                        address += 1
+                    except ValueError:
+                        pass
+        except FileNotFoundError:
+            print(f"{sys.argv[0]}: {sys.argv[1]} Not found")
+            sys.exit(2)
 
 
     def alu(self, op, reg_a, reg_b):

@@ -2,14 +2,19 @@
 
 import sys
 
-PRN = 0b01000111 #PRN 
-LDI = 0b10000010 #LDI
-HLT = 0b00000001 #HLT
-MUL = 0b10100010 #MUL
-PUSH = 0b01000101 #PUSH
-POP = 0b01000110 #POP
-# Register 7 is 0xF4 hex
-R7 = 244 # converted to decimal
+PRN = 0b01000111 
+LDI = 0b10000010 
+HLT = 0b00000001 
+MUL = 0b10100010 
+PUSH = 0b01000101 
+POP = 0b01000110 
+CALL = 0b01010000 
+RET = 0b00010001
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110    
+SP = 7
 
 
 class CPU:
@@ -24,11 +29,6 @@ class CPU:
         # Also add properties for any internal registers you need, e.g. `PC`.
         # Program counter starts at 0, points to currently-executing instruction
         self.pc = 0
-        # self.hlt = False
-        # Stack stores information temporarily
-        # Stack Pointer is at R7 (Register 7)
-        # Acts as index 
-        self.sp = R7
         # Set up a branch table
         self.branchtable = {}
         self.branchtable[PRN] = self.prn
@@ -37,104 +37,154 @@ class CPU:
         self.branchtable[MUL] = self.mul
         self.branchtable[PUSH] = self.push
         self.branchtable[POP] = self.pop
-
-        self.running = True
-        
+        self.branchtable[CALL] = self.call
+        self.branchtable[RET] = self.ret
+        self.branchtable[CMP] = self.CMP
+        self.branchtable[JMP] = self.JMP
+        self.branchtable[JEQ] = self.JEQ
+        self.branchtable[JNE] = self.JNE
+        # Flag setup
+        # set flag to 0
+        self.fl = 0
+        # E Equal: during a CMP, set to 1 if registerA is equal to registerB, zero otherwise.
+        self.E = 0 # 0 == false, 1 == true
+        # L Less-than: during a CMP, set to 1 if registerA is less than registerB, zero otherwise.
+        self.L = 0 # 1 == regA.value < regB.value
+        # G Greater-than: during a CMP, set to 1 if registerA is greater than registerB, zero otherwise.
+        self.G = 0 # 1 == regA.value > regB.value    
 
     # PRN - PRN register pseudo-instruction
-    def prn(self, a, b):
-        # operand_a = self.ram[self.pc + 1] # targeted register
+    def prn(self):
         # Print numeric value stored in the given register.
         # Print to the console the decimal integer value that is stored in the given register.
-        print(self.reg[a])
+        operand_a = self.ram[self.pc + 1]
+        print(self.reg[operand_a])
 
     # LDI - register immediate
-    def ldi(self, a, b):
-        # operand_a = self.ram[self.pc + 1] # targeted register
-        # operand_b = self.ram[self.pc + 2] # value to load
-        # This instruction sets a specified register to a specified value. 
-        self.reg[a] = b
+    def ldi(self):
+        operand_a = self.ram[self.pc + 1] # targeted register
+        operand_b = self.ram[self.pc + 2] # value to load
+        self.reg[operand_a] = operand_b
+        # self.pc += 3
     
     # HLT - Halt the CPU (and exit the emulator).
-    def hlt(self, a, b):
+    def hlt(self):
         self.running = False
+        # self.pc += 1
 
     # MUL registerA registerB
-    def mul(self, a, b):
-        # operand_a = self.ram[self.pc + 1] # targeted register
-        # operand_b = self.ram[self.pc + 2] # value to load
+    def mul(self):
         # Multiply the values in two registers together and store the result in registerA.
-        self.alu("MUL", a, b)
+        operand_a = self.ram[self.pc + 1]
+        operand_b = self.ram[self.pc + 2]
+        self.alu("MUL", operand_a, operand_b)
+        # self.pc += 3
 
-    def push(self, a, b):
+    def push(self):
         reg_address = self.ram[self.pc + 1] # targeted register
-        self.sp -= 1  # grows down as things are pushed on, decrement stack, update stack pointer
+        self.reg[SP] -= 1  # grows down as things are pushed on, decrement stack, update stack pointer
         value = self.reg[reg_address] 
         # Copy the value in the given register to the address pointed to by SP
-        self.ram[self.sp] = value # Save value in portion of ram _that is allocated for the stack_
-    
-    def pop(self, a, b):
+        self.ram[self.reg[SP]] = value # Save value in portion of ram _that is allocated for the stack_
+        # self.pc += 2
+
+    def pop(self):
         reg_address = self.ram[self.pc + 1] # targeted register
-        value = self.ram[self.sp] # get value from ram
+        value = self.ram[self.reg[SP]] # get value from ram
         self.reg[reg_address] = value # set value from ram to register address
-        self.sp += 1 # increment stack, update stack pointer
-      
+        self.reg[SP] += 1 # increment stack, update stack pointer
+        # self.pc += 2
     
-       
+    # CALL - CALL register
+    # Calls a subroutine (function) at the address stored in the register.
+    def call(self):
+        # PUSH the next address onto the stack
+        # The address of the instruction directly after CALL is pushed onto the stack. 
+        # This allows us to return to where we left off when the subroutine finishes executing.
+        next_address = self.pc + 2
+        self.reg[SP] -= 1
+        self.ram[self.reg[SP]] = next_address
+        # The PC is set to the address stored in the given register. 
+        # Set pc to first argument(operand)
+        address = self.reg[self.ram[self.pc + 1]]
+        self.pc = address
+        # reg_address = self.ram[self.pc + 1]
+        # self.pc = self.reg[reg_address]
+
+        # We jump to that location in RAM and execute the first instruction in the subroutine.
+        # The PC can move forward or backwards from its current location.
+
+    # RET - Return from subroutine
+    def ret(self):
+        # Pop the value from the top of the stack
+        next_address = self.ram[self.pc]
+        self.reg[SP] += 1
+        # store it in the PC.
+        self.pc = next_address
+    
+    def JMP(self):
+        jump_address = self.reg[self.ram[self.pc + 1]]
+        self.pc = jump_address
+
+    def JEQ(self):
+        if self.E == 1:
+            self.pc = self.reg[self.ram[self.pc + 1]]
+        else:
+            self.pc += 2
+
+    def JNE(self):
+        if self.E == 0:
+            self.pc = self.reg[self.ram[self.pc + 1]]
+        else:
+            self.pc += 2
+    
+    def CMP(self):
+        # self.alu('CMP', a, b)
+        # self.pc += 3
+
+        # compare two values in regA + regB , set flag accordingly
+        
+        # RESET Flags for subsequent compares ?
+        self.E = 0
+        self.L = 0
+        self.G = 0
+        reg_a = self.reg[self.ram[self.pc + 1]]
+        reg_b = self.reg[self.ram[self.pc + 2]]
+
+        if reg_a == reg_b:
+            self.E = 1
+        elif reg_a < reg_b:
+            self.L = 1
+        elif reg_a > reg_b:
+            self.G = 1
+
     # In `CPU`, add method `ram_read()` and `ram_write()` that access the RAM inside
     # the `CPU` object.
 
     # `ram_read()` should accept the address to read and return the value stored
     # there.
-    def ram_read(self, memory_address_register):  # accept address to read
-        value = self.ram[memory_address_register]  # get value stored at address
-        return value
+    def ram_read(self, address):  # accept address to read
+        return(self.ram[address])  # get value stored at address
 
     # `raw_write()` should accept a value to write, and the address to write it to.
-    def ram_write(self, memory_data_register, memory_address_register):  # accept value and address
-        self.ram[memory_address_register] = memory_data_register
+    def ram_write(self, value, address):  # accept value and address
+        self.ram[address] = value
 
     def load(self):
         """Load a program into memory."""
-
-        # # For now, we've just hardcoded a program:
-
-        # address = 0
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010, # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111, # PRN R0
-        #     0b00000000,
-        #     0b00000001, # HLT
-        # ]
-
-        # for instruction in program:
-        #     self.ram[address] = instruction
-        #     address += 1
-
-        # print("arg0", sys.argv[0])
-        # print("arg1", sys.argv[1])
         
-        # Use those command line arguments to open a file
         try: 
             with open(sys.argv[1]) as f:
                 address = 0
                 # read in its contents line by line
                 for line in f:
-                    # search the instruction part before "#"
-                    comment_split = line.split("#")
-                    # remove empty space
-                    num = comment_split[0].strip()
-                    
-                    try: 
-                        # convert binary to int and save appropriate data into RAM.
-                        self.ram[address] = int(num, 2)
-                        address += 1
-                    except ValueError:
-                        pass
+                    num = line.split('#', 1)[0]
+                    if num.strip() == '':
+                        continue
+                    # convert binary to int and save appropriate data into RAM.
+                    self.ram[address] = int(num, 2)
+                    address += 1
+
         except FileNotFoundError:
             print(f"{sys.argv[0]}: {sys.argv[1]} Not found")
             sys.exit(2)
@@ -159,7 +209,7 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
+            self.fl,
             #self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
@@ -172,91 +222,44 @@ class CPU:
         print()
 
     def run(self):
-        """Run the CPU."""
-    
+        """Run  the CPU."""
+        # Stack stores information temporarily
+        # Stack Pointer starts at top, R7 (Register 7)
+        # Acts as index 
+        # self.sp = 244 in decimal
+        self.reg[SP] = 244
+        self.running = True
+
         while self.running: 
             # Read the memory address that's stored in register `PC`, 
             # Store that result in `IR`, the _Instruction Register_. This can just be a local variable in `run()`.
             ir = self.pc
             op = self.ram[ir]
             # dynamic instruction size
+            # instruction_size = ((op & 11000000) >> 6) + 1
+
+            # In **any** case where the instruction handler sets the `PC` directly, you
+            # _don't_ want to advance the PC to the next instruction. So you'll have to
+            # set up a special case for those types of instructions. This can be a flag
+            # you explicitly set per-instruction... but can also be computed from the
+            # value in `IR`. 
+            # pc_flag = (op & 0b00010000)
+            # print("pc-flag", op)
+            
+            operand_a = self.ram[self.pc + 1]
+            operand_b = self.ram[self.pc + 2]
             instruction_size = ((op & 11000000) >> 6) + 1
+            pc_set_flag = (op & 0b00010000) # applies a mask to get pc_set bit
+          
+            self.branchtable[op]()
+                # self.pc += instruction_size
+            if pc_set_flag != 0b00010000:
+                self.pc += instruction_size
+            # except: 
+            #     print(f"unknown instruction {op}")
+            #     sys.exit(1)
 
-            operand_a = self.ram_read(self.pc + 1)
-            operand_b = self.ram_read(self.pc + 2)
-            self.branchtable[op](operand_a, operand_b)
-            self.pc += instruction_size
-
-            # Using `ram_read()`, read the bytes at `PC+1` and `PC+2` from RAM into variables `operand_a` and
-            # `operand_b` in case the instruction needs them.
-            # operand_a = self.ram_read(self.pc + 1)
-            # operand_b = self.ram_read(self.pc + 2)
-
-            # depending on the value of the opcode, perform the actions needed for the instruction per the LS-8 spec. 
-            # if-else cascade
-
-            ## instructions
-            # HLT = 0b00000001  # Machine code: 00000001 
-            # LDI = 0b10000010
-            # PRN = 0b01000111
-            # MUL = 0b10100010
-            
-            # HLT - Halt the CPU (and exit the emulator).
-            # if op == HLT:
-            #     running = False
-
-            # LDI - register immediate
-            # elif op == LDI:
-            #     # This instruction sets a specified register to a specified value. 
-            #     self.reg[operand_a] = operand_b
-            #     # increment pc by 3, LDI stores 3 memory addresses
-            #     self.pc += 3
-
-            # PRN - PRN register pseudo-instruction
-            # elif op == PRN: 
-            # # Print numeric value stored in the given register.
-            # # Print to the console the decimal integer value that is stored in the given register.
-            #     print(self.reg[operand_a])
-            #     # increment pc by 2, LDI stores 2 memory addresses
-            #     self.pc += 2
-
-            # MUL registerA registerB
-            # Multiply the values in two registers together and store the result in registerA.
-            # elif op == MUL:
-            #     self.alu("MUL", operand_a, operand_b)
-            #     # increment pc by 3, MUL stores 3 memory addresses
-            #     self.pc += 3
-
-            # PUSH
-            # elif op == PUSH:
-                # reg_num = memory[pc + 1]
-
-                # # decremenet sp
-                # reg[SP] -= 1
-
-                # # copy value from register into RAM
-                # val = registers[reg_num]
-                # top_of_stack = registers[SP]
-                # memory[top_of_stack] = val
-
-                # pc += 2
-            
-            # POP
-            # opposite of push 
-            # elif op == POP:
-                # reg_num = memory[pc + 1]
-
-                # # copy value from the address pointed to SP by given register
-                # # copy from stack to register
-                # top_of_stack = registers[SP]
-                # val = memory[top_of_stack]
-                # registers[reg_num] = val
-
-                # # increment SP
-                # registers[SP] += 1
-                
-                # pc += 2
-
+           
 
 
         

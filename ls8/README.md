@@ -60,8 +60,27 @@ but you'll have to implement those three above instructions first!
 ## Step 0: IMPORTANT: inventory what is here!
 
 * Make a list of files here.
+    1. cpu.py
+    2. ls8.py
+
 * Write a short 3-10-word description of what each file does.
+
+    1. cpu.py contains a main CPU class with 4 methods:
+        1. The "load" method loads a program into a memory address. 
+        2. The "alu" method completes mathematical operations (add, substract, etc..).
+        3. The "trace" method prints out the state of the CPU and is helpful for debugging. Hint: call from run() to debug.
+        4. The "run" method runs the CPU.
+    2. ls8.py imports the CPU class, loads it, and runs it. 
+
 * Note what has been implemented, and what hasn't.
+
+    1. cpu.py:
+        1. The "load" method has a hardcoded program that contains a list of binary numbers or bytes with a counter for the address stored in memory.
+        2. The "alu" method is set up to perform an addition operation, but subtraction is commented out.
+        3. The "trace" method is set up to print the PC, but fl and ie are commented out.
+    2. ls8.py:
+        1. A new cpu class is created, loaded and run. Seems ready after cpu.py is complete.
+
 * Read this whole file.
 * Skim the spec.
 
